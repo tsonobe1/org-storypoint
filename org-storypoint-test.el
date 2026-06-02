@@ -160,4 +160,122 @@
                (lambda (_prompt _collection) "0:05")))
       (should-error (org-storypoint-assign-efforts) :type 'user-error))))
 
+;;; --- Issue #3: Tree aggregation ---
+
+;;; RED 11: Nested tree calculates Effort recursively from leaf SP
+(ert-deftest org-storypoint-test-assign-efforts-nested ()
+  "Leaf SP drives Effort; intermediate tasks get children's sum."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            "** Task 1\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** Task 2\n"
+            "*** Sub 2-1\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 2\n"
+            ":END:\n"
+            "*** Sub 2-2\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
+               (lambda (_prompt _collection) "0:10")))
+      (org-storypoint-assign-efforts))
+    ;; Task 1 (leaf): 3 SP × 10 min = 0:30
+    (goto-char (point-min))
+    (search-forward "Task 1")
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "0:30"))
+    ;; Sub 2-1 (leaf): 2 SP × 10 min = 0:20
+    (goto-char (point-min))
+    (search-forward "Sub 2-1")
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "0:20"))
+    ;; Sub 2-2 (leaf): 5 SP × 10 min = 0:50
+    (goto-char (point-min))
+    (search-forward "Sub 2-2")
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "0:50"))
+    ;; Task 2 (intermediate): children sum = 7 SP × 10 min = 1:10
+    (goto-char (point-min))
+    (search-forward "Task 2")
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "1:10"))
+    ;; Project (root): total = 10 SP, Effort = 1:40
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "STORYPOINT") "10"))
+    (should (equal (org-entry-get nil "Effort") "1:40"))))
+
+;;; RED 12: Unestimated leaf tasks produce warning message
+(ert-deftest org-storypoint-test-assign-efforts-warns-unestimated ()
+  "Leaf tasks without STORYPOINT trigger a warning naming the task."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            "** Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** Task B\n"
+            "** Task C\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((warning-messages '()))
+      (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
+                 (lambda (_prompt _collection) "0:10"))
+                ((symbol-function 'message)
+                 (lambda (fmt &rest args)
+                   (push (apply #'format fmt args) warning-messages))))
+        (org-storypoint-assign-efforts))
+      (should (cl-some (lambda (msg) (string-match-p "Task B" msg))
+                       warning-messages)))))
+
+;;; RED 13: Intermediate task SP mismatch produces warning, property not overwritten
+(ert-deftest org-storypoint-test-assign-efforts-sp-mismatch-warning ()
+  "Intermediate task with own SP different from children sum warns but keeps property."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            "** Task 2\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 8\n"
+            ":END:\n"
+            "*** Sub 2-1\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n"
+            "*** Sub 2-2\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((warning-messages '()))
+      (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
+                 (lambda (_prompt _collection) "0:10"))
+                ((symbol-function 'message)
+                 (lambda (fmt &rest args)
+                   (push (apply #'format fmt args) warning-messages))))
+        (org-storypoint-assign-efforts))
+      ;; Warning mentions Task 2 and the mismatch
+      (should (cl-some (lambda (msg)
+                         (and (string-match-p "Task 2" msg)
+                              (string-match-p "8" msg)
+                              (string-match-p "10" msg)))
+                       warning-messages))
+      ;; STORYPOINT property on Task 2 is NOT overwritten (still 8)
+      (goto-char (point-min))
+      (search-forward "Task 2")
+      (org-back-to-heading t)
+      (should (equal (org-entry-get nil "STORYPOINT") "8")))))
+
 ;;; org-storypoint-test.el ends here

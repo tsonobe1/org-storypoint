@@ -122,49 +122,96 @@ When MIN-POINT is non-nil, offer only candidates >= MIN-POINT."
          (m (string-to-number (cadr parts))))
     (+ (* h 60) m)))
 
+(defun org-storypoint--minutes-to-effort (minutes)
+  "Format MINUTES as effort string \"H:MM\"."
+  (format "%d:%02d" (/ minutes 60) (% minutes 60)))
+
 (defun org-storypoint--effort-from-point (storypoint base-minutes)
   "Return effort string like \"0:15\" for STORYPOINT and BASE-MINUTES."
-  (let ((total (round (* base-minutes storypoint))))
-    (format "%d:%02d" (/ total 60) (% total 60))))
+  (org-storypoint--minutes-to-effort (round (* base-minutes storypoint))))
+
+(defun org-storypoint--direct-children (parent-pos)
+  "Return list of markers for direct children of PARENT-POS."
+  (let ((children '())
+        (parent-level (save-excursion
+                        (goto-char parent-pos)
+                        (org-current-level))))
+    (save-excursion
+      (goto-char parent-pos)
+      (let ((subtree-end (save-excursion (org-end-of-subtree t) (point))))
+        (while (re-search-forward org-heading-regexp subtree-end t)
+          (save-excursion
+            (org-back-to-heading t)
+            (unless (= (point) parent-pos)
+              (when (= (org-current-level) (1+ parent-level))
+                (push (point-marker) children)))))))
+    (nreverse children)))
+
+(defun org-storypoint--collect-tree (marker base-minutes)
+  "Recursively compute SP and effort-minutes for subtree at MARKER.
+Return (sp . effort-minutes).  Set Effort property on each entry.
+For leaf tasks, Effort = SP * base-minutes.
+For intermediate tasks, Effort = sum of children's efforts."
+  (let ((children (org-storypoint--direct-children (marker-position marker))))
+    (if (null children)
+        ;; Leaf task
+        (let ((sp (org-storypoint--get (marker-position marker))))
+          (if sp
+              (let* ((effort (org-storypoint--effort-from-point sp base-minutes))
+                     (effort-min (org-storypoint--parse-time-to-minutes effort)))
+                (save-excursion
+                  (goto-char marker)
+                  (org-set-property "Effort" effort))
+                (cons sp effort-min))
+            (message "Warning: '%s' has no STORYPOINT (skipped)"
+                     (save-excursion (goto-char marker)
+                                     (org-get-heading t t t t)))
+            (cons 0 0)))
+      ;; Intermediate task — recurse into children
+      (let ((total-sp 0)
+            (total-effort-min 0))
+        (dolist (child children)
+          (let ((result (org-storypoint--collect-tree child base-minutes)))
+            (setq total-sp (+ total-sp (car result)))
+            (setq total-effort-min (+ total-effort-min (cdr result)))))
+        (when (> total-sp 0)
+          (save-excursion
+            (goto-char marker)
+            (let ((own-sp (org-storypoint--get (marker-position marker))))
+              (when (and own-sp (/= own-sp total-sp))
+                (message "Note: '%s' has STORYPOINT %s but children sum to %s. Using children sum."
+                         (org-get-heading t t t t)
+                         (org-storypoint--format own-sp)
+                         (org-storypoint--format total-sp))))
+            (org-set-property "Effort"
+                              (org-storypoint--minutes-to-effort total-effort-min))))
+        (cons total-sp total-effort-min)))))
 
 (defun org-storypoint-assign-efforts ()
   "Assign Effort to child tasks based on their STORYPOINT values."
   (interactive)
   (org-back-to-heading t)
   (let* ((parent-pos (point))
-         (subtree-end (save-excursion (org-end-of-subtree t) (point)))
          (base-choice (org-storypoint--completing-read-in-order
                        "Time for 1 Storypoint: "
                        org-storypoint-time-options))
          (base-minutes (org-storypoint--parse-time-to-minutes base-choice))
-         (entries '())
-         (total-sp 0)
-         (total-effort-minutes 0))
-    (save-excursion
-      (goto-char parent-pos)
-      (while (re-search-forward org-heading-regexp subtree-end t)
-        (let ((pos (save-excursion (org-back-to-heading t) (point))))
-          (unless (= pos parent-pos)
-            (let ((sp (org-storypoint--get pos)))
-              (when sp
-                (push (cons pos sp) entries)))))))
-    (unless entries
-      (user-error "No child tasks with STORYPOINT found"))
-    (dolist (entry entries)
-      (let* ((pos (car entry))
-             (sp (cdr entry))
-             (effort (org-storypoint--effort-from-point sp base-minutes))
-             (effort-min (org-storypoint--parse-time-to-minutes effort)))
-        (save-excursion
-          (goto-char pos)
-          (org-set-property "Effort" effort))
-        (setq total-sp (+ total-sp sp))
-        (setq total-effort-minutes (+ total-effort-minutes effort-min))))
-    (save-excursion
-      (goto-char parent-pos)
-      (let ((total (format "%d:%02d" (/ total-effort-minutes 60)
-                           (% total-effort-minutes 60))))
-        (org-set-property "Effort" total)
+         (parent-marker (point-marker))
+         (children (org-storypoint--direct-children parent-pos)))
+    (unless children
+      (user-error "No child headings found"))
+    (let ((total-sp 0)
+          (total-effort-min 0))
+      (dolist (child children)
+        (let ((result (org-storypoint--collect-tree child base-minutes)))
+          (setq total-sp (+ total-sp (car result)))
+          (setq total-effort-min (+ total-effort-min (cdr result)))))
+      (when (= total-sp 0)
+        (user-error "No child tasks with STORYPOINT found"))
+      (save-excursion
+        (goto-char parent-marker)
+        (org-set-property "Effort"
+                          (org-storypoint--minutes-to-effort total-effort-min))
         (org-set-property "STORYPOINT" (org-storypoint--format total-sp))))))
 
 (provide 'org-storypoint)
