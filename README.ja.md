@@ -63,21 +63,40 @@ Webアプリ開発の2週間スプリントを例に、全ワークフローを�
 * Sprint 2026-W23  :sprint:
 SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 ** ユーザー認証
-*** TODO ログインフォームUI
-*** TODO 入力バリデーション
-*** TODO エラーメッセージ表示
-*** TODO OAuth連携（Google）
-*** TODO OAuth連携（GitHub）
-*** TODO セッション永続化
+*** ログインフォーム
+**** TODO フォームレイアウトとスタイリング
+**** TODO メール/パスワードバリデーション
+**** TODO エラーメッセージ表示
+**** TODO 「ログイン状態を保持」チェックボックス
+*** OAuth連携
+**** TODO Google OAuth: アプリ登録と認証情報取得
+**** TODO Google OAuth: コールバックハンドラ
+**** TODO GitHub OAuth: アプリ登録と認証情報取得
+**** TODO GitHub OAuth: コールバックハンドラ
+**** TODO OAuthユーザー作成フローの統一
+*** セッション管理
+**** TODO JWTトークン生成
+**** TODO リフレッシュトークンローテーション
+**** TODO ログアウトとトークン失効
 ** 検索機能改善
-*** TODO postsテーブルに全文検索インデックス追加
-*** TODO 検索結果ランキングロジック
-*** TODO フィルタUI（カテゴリ、日付範囲）
-*** TODO 検索結果なし画面
+*** バックエンド
+**** TODO posts.bodyカラムにGINインデックス追加
+**** TODO ts_rankスコアリング実装
+**** TODO 検索結果APIのページネーション
+*** フロントエンド
+**** TODO デバウンス付き検索バー
+**** TODO カテゴリフィルタドロップダウン
+**** TODO 日付範囲ピッカー
+**** TODO 検索結果なし画面
+**** TODO ローディングスケルトン
 ** パフォーマンス
-*** TODO APIレスポンスタイムのプロファイリング
-*** TODO ホットクエリのRedisキャッシュ追加
-*** TODO 一覧ページの画像遅延読み込み
+*** プロファイリング
+**** TODO リクエストタイミングミドルウェア設置
+**** TODO 遅いエンドポイントTop5の特定
+*** 最適化
+**** TODO ホットクエリのRedisキャッシュ追加
+**** TODO 一覧ページの画像遅延読み込み
+**** TODO APIレスポンスのgzip圧縮有効化
 ```
 
 ### 2. リーフタスクを見積もる
@@ -88,7 +107,7 @@ SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 見積もり後のタスク:
 
 ```org
-*** TODO ログインフォームUI
+**** TODO フォームレイアウトとスタイリング
 :PROPERTIES:
 :STORYPOINT_OPTIMISTIC: 1
 :STORYPOINT_MOST_LIKELY: 2
@@ -106,21 +125,40 @@ SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 * Sprint 2026-W23  :sprint:
 SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 ** ユーザー認証
-*** TODO ログインフォームUI                  :STORYPOINT: 2:
-*** TODO 入力バリデーション                  :STORYPOINT: 1:
-*** TODO エラーメッセージ表示                :STORYPOINT: 1:
-*** TODO OAuth連携（Google）                 :STORYPOINT: 5:
-*** TODO OAuth連携（GitHub）                 :STORYPOINT: 3:
-*** TODO セッション永続化                    :STORYPOINT: 3:
+*** ログインフォーム
+**** TODO フォームレイアウトとスタイリング    :STORYPOINT: 2:
+**** TODO メール/パスワードバリデーション    :STORYPOINT: 1:
+**** TODO エラーメッセージ表示               :STORYPOINT: 1:
+**** TODO 「ログイン状態を保持」             :STORYPOINT: 1:
+*** OAuth連携
+**** TODO Google OAuth: アプリ登録           :STORYPOINT: 1:
+**** TODO Google OAuth: コールバック         :STORYPOINT: 3:
+**** TODO GitHub OAuth: アプリ登録           :STORYPOINT: 1:
+**** TODO GitHub OAuth: コールバック         :STORYPOINT: 2:
+**** TODO OAuthユーザー作成フロー統一        :STORYPOINT: 3:
+*** セッション管理
+**** TODO JWTトークン生成                    :STORYPOINT: 2:
+**** TODO リフレッシュトークンローテーション :STORYPOINT: 3:
+**** TODO ログアウトとトークン失効           :STORYPOINT: 2:
 ** 検索機能改善
-*** TODO 全文検索インデックス追加            :STORYPOINT: 5:
-*** TODO 検索結果ランキングロジック          :STORYPOINT: 8:
-*** TODO フィルタUI（カテゴリ、日付範囲）    :STORYPOINT: 5:
-*** TODO 検索結果なし画面                    :STORYPOINT: 1:
+*** バックエンド
+**** TODO GINインデックス追加                :STORYPOINT: 2:
+**** TODO ts_rankスコアリング実装            :STORYPOINT: 5:
+**** TODO 検索結果APIページネーション        :STORYPOINT: 2:
+*** フロントエンド
+**** TODO デバウンス付き検索バー             :STORYPOINT: 2:
+**** TODO カテゴリフィルタドロップダウン      :STORYPOINT: 3:
+**** TODO 日付範囲ピッカー                   :STORYPOINT: 5:
+**** TODO 検索結果なし画面                   :STORYPOINT: 1:
+**** TODO ローディングスケルトン             :STORYPOINT: 1:
 ** パフォーマンス
-*** TODO APIレスポンスタイムのプロファイリング :STORYPOINT: 2:
-*** TODO Redisキャッシュ追加                 :STORYPOINT: 5:
-*** TODO 画像遅延読み込み                    :STORYPOINT: 2:
+*** プロファイリング
+**** TODO リクエストタイミングミドルウェア    :STORYPOINT: 2:
+**** TODO 遅いエンドポイントTop5特定         :STORYPOINT: 3:
+*** 最適化
+**** TODO Redisキャッシュ追加                :STORYPOINT: 5:
+**** TODO 画像遅延読み込み                   :STORYPOINT: 2:
+**** TODO gzip圧縮有効化                     :STORYPOINT: 1:
 ```
 
 ### 3. Effort に変換する
@@ -130,22 +168,22 @@ SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 
 結果:
 
-- 各 **リーフタスク** に `Effort = STORYPOINT × 15分` が設定される（例: `ログインフォームUI` → `0:30`）
-- 各 **中間タスク**（例: `ユーザー認証`）に子の Effort 合計が設定される
-- **スプリント見出し** に全体の合計が設定される: `STORYPOINT: 43`, `Effort: 10:45`
+- 各 **リーフタスク** に `Effort = STORYPOINT × 15分` が設定される（例: `フォームレイアウトとスタイリング` (2 SP) → `0:30`）
+- 各 **中間タスク**（例: `ログインフォーム`、`ユーザー認証`）に子の Effort 合計が設定される
+- **スプリント見出し** に全体の合計が設定される: `STORYPOINT: 56`, `Effort: 14:00`
 
 ### 4. 毎日の進捗確認
 
 スプリント数日目に `org-storypoint-progress` をスプリント見出しで実行:
 
 ```
-behind -3.0SP | pace 4.3SP/day | done 10/43 SP (23.3%)
+behind -5.2SP | pace 5.6SP/day | done 12/56 SP (21.4%)
 ```
 
 これは以下を意味します:
-- 理想バーンダウンラインから **3 SP 遅れている**
-- 期日に間に合うには平均 **4.3 SP/日** のペースが必要
-- 現在 **43 SP 中 10 SP** を完了
+- 理想バーンダウンラインから **5.2 SP 遅れている**
+- 期日に間に合うには平均 **5.6 SP/日** のペースが必要
+- 現在 **56 SP 中 12 SP** を完了
 
 チームが土日休みなら `org-storypoint-set-weekend` で土日を日数計算から除外できます。
 

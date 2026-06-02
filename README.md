@@ -63,21 +63,40 @@ Here is a full walkthrough using a 2-week sprint for a web application.
 * Sprint 2026-W23  :sprint:
 SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 ** User authentication
-*** TODO Login form UI
-*** TODO Input validation
-*** TODO Error message display
-*** TODO OAuth integration (Google)
-*** TODO OAuth integration (GitHub)
-*** TODO Session persistence
+*** Login form
+**** TODO Form layout and styling
+**** TODO Email/password validation
+**** TODO Error message display
+**** TODO "Remember me" checkbox
+*** OAuth integration
+**** TODO Google OAuth: register app and get credentials
+**** TODO Google OAuth: callback handler
+**** TODO GitHub OAuth: register app and get credentials
+**** TODO GitHub OAuth: callback handler
+**** TODO Unify OAuth user creation flow
+*** Session management
+**** TODO JWT token generation
+**** TODO Refresh token rotation
+**** TODO Logout and token revocation
 ** Search improvements
-*** TODO Add full-text index to posts table
-*** TODO Search result ranking logic
-*** TODO Filter UI (category, date range)
-*** TODO Empty state / no results page
+*** Backend
+**** TODO Add GIN index to posts.body column
+**** TODO Implement ts_rank scoring
+**** TODO Pagination for search results API
+*** Frontend
+**** TODO Search bar with debounced input
+**** TODO Category filter dropdown
+**** TODO Date range picker
+**** TODO Empty state / no results page
+**** TODO Loading skeleton
 ** Performance
-*** TODO Profile API response times
-*** TODO Add Redis caching for hot queries
-*** TODO Lazy-load images on listing pages
+*** Profiling
+**** TODO Set up request timing middleware
+**** TODO Identify top 5 slow endpoints
+*** Optimization
+**** TODO Add Redis caching for hot queries
+**** TODO Lazy-load images on listing pages
+**** TODO Enable gzip compression for API responses
 ```
 
 ### 2. Estimate each leaf task
@@ -88,7 +107,7 @@ You will be prompted for Optimistic (O), Most Likely (M), Pessimistic (P), and a
 After estimating, the task looks like:
 
 ```org
-*** TODO Login form UI
+**** TODO Form layout and styling
 :PROPERTIES:
 :STORYPOINT_OPTIMISTIC: 1
 :STORYPOINT_MOST_LIKELY: 2
@@ -106,21 +125,40 @@ After estimating all leaf tasks, the tree might look like:
 * Sprint 2026-W23  :sprint:
 SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 ** User authentication
-*** TODO Login form UI                       :STORYPOINT: 2:
-*** TODO Input validation                    :STORYPOINT: 1:
-*** TODO Error message display               :STORYPOINT: 1:
-*** TODO OAuth integration (Google)          :STORYPOINT: 5:
-*** TODO OAuth integration (GitHub)          :STORYPOINT: 3:
-*** TODO Session persistence                 :STORYPOINT: 3:
+*** Login form
+**** TODO Form layout and styling             :STORYPOINT: 2:
+**** TODO Email/password validation           :STORYPOINT: 1:
+**** TODO Error message display               :STORYPOINT: 1:
+**** TODO "Remember me" checkbox              :STORYPOINT: 1:
+*** OAuth integration
+**** TODO Google OAuth: register app          :STORYPOINT: 1:
+**** TODO Google OAuth: callback handler      :STORYPOINT: 3:
+**** TODO GitHub OAuth: register app          :STORYPOINT: 1:
+**** TODO GitHub OAuth: callback handler      :STORYPOINT: 2:
+**** TODO Unify OAuth user creation flow      :STORYPOINT: 3:
+*** Session management
+**** TODO JWT token generation                :STORYPOINT: 2:
+**** TODO Refresh token rotation              :STORYPOINT: 3:
+**** TODO Logout and token revocation         :STORYPOINT: 2:
 ** Search improvements
-*** TODO Add full-text index to posts table  :STORYPOINT: 5:
-*** TODO Search result ranking logic         :STORYPOINT: 8:
-*** TODO Filter UI (category, date range)    :STORYPOINT: 5:
-*** TODO Empty state / no results page       :STORYPOINT: 1:
+*** Backend
+**** TODO Add GIN index to posts.body         :STORYPOINT: 2:
+**** TODO Implement ts_rank scoring           :STORYPOINT: 5:
+**** TODO Pagination for search results API   :STORYPOINT: 2:
+*** Frontend
+**** TODO Search bar with debounced input     :STORYPOINT: 2:
+**** TODO Category filter dropdown            :STORYPOINT: 3:
+**** TODO Date range picker                   :STORYPOINT: 5:
+**** TODO Empty state / no results page       :STORYPOINT: 1:
+**** TODO Loading skeleton                    :STORYPOINT: 1:
 ** Performance
-*** TODO Profile API response times          :STORYPOINT: 2:
-*** TODO Add Redis caching for hot queries   :STORYPOINT: 5:
-*** TODO Lazy-load images on listing pages   :STORYPOINT: 2:
+*** Profiling
+**** TODO Set up request timing middleware    :STORYPOINT: 2:
+**** TODO Identify top 5 slow endpoints       :STORYPOINT: 3:
+*** Optimization
+**** TODO Add Redis caching for hot queries   :STORYPOINT: 5:
+**** TODO Lazy-load images on listing pages   :STORYPOINT: 2:
+**** TODO Enable gzip compression             :STORYPOINT: 1:
 ```
 
 ### 3. Convert to Effort
@@ -130,22 +168,22 @@ Select a base duration (e.g., `0:15` = 15 minutes per storypoint).
 
 The result:
 
-- Each **leaf task** gets `Effort = STORYPOINT × 15 min` (e.g., `Login form UI` → `0:30`)
-- Each **intermediate task** (e.g., `User authentication`) gets the sum of its children's Effort
-- The **sprint heading** gets the total: `STORYPOINT: 43`, `Effort: 10:45`
+- Each **leaf task** gets `Effort = STORYPOINT × 15 min` (e.g., `Form layout and styling` (2 SP) → `0:30`)
+- Each **intermediate task** (e.g., `Login form`, `User authentication`) gets the sum of its children's Effort
+- The **sprint heading** gets the total: `STORYPOINT: 56`, `Effort: 14:00`
 
 ### 4. Track progress daily
 
 A few days into the sprint, run `org-storypoint-progress` on the sprint heading:
 
 ```
-behind -3.0SP | pace 4.3SP/day | done 10/43 SP (23.3%)
+behind -5.2SP | pace 5.6SP/day | done 12/56 SP (21.4%)
 ```
 
 This tells you:
-- You're **3 SP behind** the ideal burn-down line
-- You need to average **4.3 SP/day** to finish on time
-- You've completed **10 out of 43 SP** so far
+- You're **5.2 SP behind** the ideal burn-down line
+- You need to average **5.6 SP/day** to finish on time
+- You've completed **12 out of 56 SP** so far
 
 Use `org-storypoint-set-weekend` to exclude weekends if the team doesn't work Sat/Sun.
 
