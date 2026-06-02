@@ -1,5 +1,7 @@
 # org-storypoint
 
+[Japanese (日本語)](README.ja.md)
+
 Three-point storypoint estimation (PERT) for Emacs org-mode. Assign storypoints to tasks, convert them to Effort, and track progress against a burn-down line.
 
 ## Features
