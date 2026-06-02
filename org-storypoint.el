@@ -21,6 +21,7 @@
 
 (require 'org)
 (require 'calendar)
+(require 'org-duration)
 
 (defgroup org-storypoint nil
   "Storypoint estimation for org-mode."
@@ -44,6 +45,21 @@
   '("0:01" "0:03" "0:05" "0:10" "0:15" "0:30" "0:45" "1:00")
   "Candidate base effort times for storypoint expansion."
   :type '(repeat string)
+  :group 'org-storypoint)
+
+(defcustom org-storypoint-effort-diff-threshold 10
+  "Minutes of Effort vs CLOCK difference that triggers a reason prompt."
+  :type 'integer
+  :group 'org-storypoint)
+
+(defcustom org-storypoint-effort-diff-property "EFFORT_DIFF_REASON"
+  "Property name for recording effort diff reasons."
+  :type 'string
+  :group 'org-storypoint)
+
+(defcustom org-storypoint-effort-breakdown-threshold 30
+  "Minutes above which Effort triggers a breakdown suggestion."
+  :type 'integer
   :group 'org-storypoint)
 
 (defun org-storypoint--format (point)
@@ -319,6 +335,68 @@ Return the result string."
       (message "%s" result)
       (kill-new result)
       result)))
+
+(defun org-storypoint--logbook-total-minutes ()
+  "Return total clocked minutes from LOGBOOK in current entry."
+  (save-excursion
+    (let* ((subtree-end (save-excursion (org-end-of-subtree t) (point)))
+           (log-start
+            (when (re-search-forward "^:LOGBOOK:" subtree-end t)
+              (forward-line 1) (point)))
+           (log-end
+            (when log-start
+              (save-excursion
+                (goto-char log-start)
+                (re-search-forward "^:END:" subtree-end t)
+                (match-beginning 0))))
+           (sum 0))
+      (when (and log-start log-end)
+        (goto-char log-start)
+        (while (re-search-forward
+                "^CLOCK:.*=>[ \t]*\\([0-9]+\\):\\([0-9]+\\)"
+                log-end t)
+          (let ((h (string-to-number (match-string 1)))
+                (m (string-to-number (match-string 2))))
+            (setq sum (+ sum (+ (* 60 h) m))))))
+      sum)))
+
+(defun org-storypoint-check-effort-diff ()
+  "Check Effort vs CLOCK diff on DONE transition."
+  (when (and (string= org-state "DONE")
+             (org-entry-get nil "Effort"))
+    (let* ((effort-min (org-duration-to-minutes (org-entry-get nil "Effort")))
+           (total-min (org-storypoint--logbook-total-minutes))
+           (diff (- total-min effort-min)))
+      (when (> (abs diff) org-storypoint-effort-diff-threshold)
+        (let ((reason
+               (read-string
+                (format "Effort: %dmin, Clocked: %dmin, Diff: %+dmin. Why? "
+                        effort-min total-min diff))))
+          (org-entry-put nil org-storypoint-effort-diff-property reason))))))
+
+(defun org-storypoint--check-effort-breakdown (&rest _args)
+  "Suggest task breakdown when Effort exceeds threshold."
+  (when (bound-and-true-p org-storypoint-mode)
+    (when-let* ((effort-str (org-entry-get nil "Effort"))
+                (min (org-duration-to-minutes effort-str)))
+      (when (>= min org-storypoint-effort-breakdown-threshold)
+        (message "Effort is %d minutes. Consider breaking this task down."
+                 (round min))))))
+
+;;;###autoload
+(define-minor-mode org-storypoint-mode
+  "Toggle storypoint automatic checks."
+  :lighter " SP"
+  (if org-storypoint-mode
+      (progn
+        (add-hook 'org-after-todo-state-change-hook
+                  #'org-storypoint-check-effort-diff nil t)
+        (advice-add 'org-set-effort :after
+                    #'org-storypoint--check-effort-breakdown))
+    (remove-hook 'org-after-todo-state-change-hook
+                 #'org-storypoint-check-effort-diff t)
+    (advice-remove 'org-set-effort
+                   #'org-storypoint--check-effort-breakdown)))
 
 (provide 'org-storypoint)
 ;;; org-storypoint.el ends here

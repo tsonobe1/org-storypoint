@@ -392,4 +392,90 @@
     (org-back-to-heading t)
     (should-error (org-storypoint-progress) :type 'user-error)))
 
+;;; --- Issue #5: Effort diff check + minor-mode ---
+
+;;; RED 19: Mode OFF — DONE transition does not prompt for diff reason
+(ert-deftest org-storypoint-test-mode-off-no-diff-check ()
+  "Without org-storypoint-mode, DONE transition does not trigger diff check."
+  (with-temp-buffer
+    (org-mode)
+    (org-storypoint-mode -1)
+    (insert "* TODO Task\n"
+            ":PROPERTIES:\n"
+            ":Effort: 0:10\n"
+            ":END:\n"
+            ":LOGBOOK:\n"
+            "CLOCK: [2026-06-01 Mon 09:00]--[2026-06-01 Mon 09:30] =>  0:30\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((read-string-called nil))
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) (setq read-string-called t) "test")))
+        (org-todo "DONE"))
+      (should-not read-string-called))))
+
+;;; RED 20: Mode ON — DONE transition records diff reason
+(ert-deftest org-storypoint-test-mode-on-diff-check ()
+  "With org-storypoint-mode, DONE transition with large diff prompts and records reason."
+  (with-temp-buffer
+    (org-mode)
+    (org-storypoint-mode 1)
+    ;; Effort 10min, CLOCK 30min → diff 20min > threshold 10
+    (insert "* TODO Task\n"
+            ":PROPERTIES:\n"
+            ":Effort: 0:10\n"
+            ":END:\n"
+            ":LOGBOOK:\n"
+            "CLOCK: [2026-06-01 Mon 09:00]--[2026-06-01 Mon 09:30] =>  0:30\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (&rest _) "took longer than expected")))
+      (org-todo "DONE"))
+    (should (equal (org-entry-get nil "EFFORT_DIFF_REASON")
+                   "took longer than expected"))
+    (org-storypoint-mode -1)))
+
+;;; RED 21: Mode ON — Effort above threshold warns about breakdown
+(ert-deftest org-storypoint-test-mode-on-breakdown-warning ()
+  "With org-storypoint-mode, setting Effort >= threshold shows breakdown message."
+  (with-temp-buffer
+    (org-mode)
+    (org-storypoint-mode 1)
+    (insert "* Task\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((warning-messages '()))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args)
+                   (push (apply #'format fmt args) warning-messages))))
+        (org-set-effort nil "0:45"))
+      (should (cl-some (lambda (msg) (string-match-p "breaking.*down\\|break.*down" msg))
+                       warning-messages)))
+    (org-storypoint-mode -1)))
+
+;;; RED 22: Mode OFF after ON — diff check no longer fires
+(ert-deftest org-storypoint-test-mode-toggle-off ()
+  "After disabling org-storypoint-mode, DONE transition does not trigger diff check."
+  (with-temp-buffer
+    (org-mode)
+    (org-storypoint-mode 1)
+    (org-storypoint-mode -1)
+    (insert "* TODO Task\n"
+            ":PROPERTIES:\n"
+            ":Effort: 0:10\n"
+            ":END:\n"
+            ":LOGBOOK:\n"
+            "CLOCK: [2026-06-01 Mon 09:00]--[2026-06-01 Mon 09:30] =>  0:30\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((read-string-called nil))
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) (setq read-string-called t) "test")))
+        (org-todo "DONE"))
+      (should-not read-string-called))))
+
 ;;; org-storypoint-test.el ends here
