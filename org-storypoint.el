@@ -20,6 +20,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'calendar)
 
 (defgroup org-storypoint nil
   "Storypoint estimation for org-mode."
@@ -213,6 +214,111 @@ For intermediate tasks, Effort = sum of children's efforts."
         (org-set-property "Effort"
                           (org-storypoint--minutes-to-effort total-effort-min))
         (org-set-property "STORYPOINT" (org-storypoint--format total-sp))))))
+
+(defun org-storypoint--done-sp-in-tree ()
+  "Return total STORYPOINT of DONE entries in current subtree."
+  (let ((total 0))
+    (org-map-entries
+     (lambda ()
+       (let ((sp (org-storypoint--get (point))))
+         (when sp (setq total (+ total sp)))))
+     "TODO=\"DONE\"" 'tree)
+    total))
+
+(defun org-storypoint--today-absolute ()
+  "Return today as an absolute date."
+  (pcase-let ((`(,_sec ,_min ,_hour ,day ,month ,year . ,_)
+               (decode-time (current-time))))
+    (calendar-absolute-from-gregorian (list month day year))))
+
+(defun org-storypoint--timestamp-to-absolute (timestamp)
+  "Return absolute date for org TIMESTAMP string, or nil."
+  (when timestamp
+    (let* ((parts (org-parse-time-string timestamp))
+           (day (nth 3 parts))
+           (month (nth 4 parts))
+           (year (nth 5 parts)))
+      (when (and day month year)
+        (calendar-absolute-from-gregorian (list month day year))))))
+
+(defun org-storypoint--weekend-p (absolute-date)
+  "Return non-nil when ABSOLUTE-DATE is Saturday or Sunday."
+  (memq (calendar-day-of-week (calendar-gregorian-from-absolute absolute-date))
+        '(0 6)))
+
+(defun org-storypoint--count-days (start end include-weekend)
+  "Count days from START to END inclusive.
+When INCLUDE-WEEKEND is nil, skip Saturdays and Sundays."
+  (let ((count 0))
+    (when (<= start end)
+      (dotimes (offset (1+ (- end start)))
+        (let ((day (+ start offset)))
+          (when (or include-weekend
+                    (not (org-storypoint--weekend-p day)))
+            (setq count (1+ count))))))
+    count))
+
+(defun org-storypoint--status-label (gap)
+  "Return progress status label for GAP storypoints."
+  (cond
+   ((< gap -0.05) "behind")
+   ((> gap 0.05) "ahead")
+   (t "on track")))
+
+(defun org-storypoint--plan-summary (total-sp done-sp)
+  "Return ideal progress summary string, or nil if no schedule."
+  (let* ((start (org-storypoint--timestamp-to-absolute
+                 (org-entry-get nil "SCHEDULED")))
+         (deadline (org-storypoint--timestamp-to-absolute
+                    (org-entry-get nil "DEADLINE")))
+         (weekend (or (org-entry-get nil "STORYPOINT_WEEKEND") "include"))
+         (include-weekend (not (string= weekend "exclude"))))
+    (when (and start deadline (> total-sp 0))
+      (let* ((today (org-storypoint--today-absolute))
+             (total-days (org-storypoint--count-days start deadline include-weekend))
+             (elapsed-end (min deadline today))
+             (elapsed-days (if (< today start) 0
+                             (org-storypoint--count-days start elapsed-end include-weekend))))
+        (when (> total-days 0)
+          (let* ((sp-per-day (/ total-sp (float total-days)))
+                 (ideal-sp (min total-sp (* sp-per-day elapsed-days)))
+                 (gap (- done-sp ideal-sp)))
+            (format "%s %+.1fSP | pace %.1fSP/day"
+                    (org-storypoint--status-label gap)
+                    gap
+                    sp-per-day)))))))
+
+(defun org-storypoint-set-weekend ()
+  "Set STORYPOINT_WEEKEND property on current entry."
+  (interactive)
+  (let ((choice (org-storypoint--completing-read-in-order
+                 "Weekend days: "
+                 '("include" "exclude"))))
+    (org-set-property "STORYPOINT_WEEKEND" choice)))
+
+(defun org-storypoint-progress ()
+  "Show storypoint progress for the current subtree.
+Return the result string."
+  (interactive)
+  (org-back-to-heading t)
+  (let* ((total-sp (or (org-storypoint--get (point)) 0)))
+    (when (= total-sp 0)
+      (user-error "No STORYPOINT set on this entry"))
+    (let* ((done-sp (org-storypoint--done-sp-in-tree))
+         (sp-pct (if (> total-sp 0)
+                     (* 100.0 (/ done-sp (float total-sp)))
+                   0.0))
+         (plan (org-storypoint--plan-summary total-sp done-sp))
+         (sp-part (format "done %s/%s SP (%.1f%%)"
+                          (org-storypoint--format done-sp)
+                          (org-storypoint--format total-sp)
+                          sp-pct))
+         (result (if plan
+                     (format "%s | %s" plan sp-part)
+                   sp-part)))
+      (message "%s" result)
+      (kill-new result)
+      result)))
 
 (provide 'org-storypoint)
 ;;; org-storypoint.el ends here

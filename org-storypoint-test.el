@@ -278,4 +278,118 @@
       (org-back-to-heading t)
       (should (equal (org-entry-get nil "STORYPOINT") "8")))))
 
+;;; --- Issue #4: Progress ---
+
+;;; RED 14: Progress shows SP completion percentage
+(ert-deftest org-storypoint-test-progress-basic ()
+  "Progress shows done/total SP percentage without schedule info."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 10\n"
+            ":END:\n"
+            "** DONE Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** TODO Task B\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 7\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((result (org-storypoint-progress)))
+      (should (string-match-p "done 3/10 SP" result))
+      (should (string-match-p "30\\.0%" result)))))
+
+;;; RED 15: Progress with SCHEDULED/DEADLINE shows ideal line comparison
+(ert-deftest org-storypoint-test-progress-with-schedule ()
+  "With SCHEDULED and DEADLINE, shows status gap and pace."
+  (with-temp-buffer
+    (org-mode)
+    ;; 10-day project, 10 SP total, 3 SP done
+    ;; SCHEDULED: day 1, DEADLINE: day 10
+    ;; "Today" = day 5 → ideal = 5 SP → gap = 3 - 5 = -2
+    (insert "* Project\n"
+            "SCHEDULED: <2026-06-01> DEADLINE: <2026-06-10>\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 10\n"
+            ":END:\n"
+            "** DONE Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** TODO Task B\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 7\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    ;; Mock "today" as 2026-06-05
+    (cl-letf (((symbol-function 'org-storypoint--today-absolute)
+               (lambda () (calendar-absolute-from-gregorian '(6 5 2026)))))
+      (let ((result (org-storypoint-progress)))
+        (should (string-match-p "behind" result))
+        (should (string-match-p "-2\\.0SP" result))
+        (should (string-match-p "pace" result))))))
+
+;;; RED 16: Weekend exclusion changes day count and pace
+(ert-deftest org-storypoint-test-progress-exclude-weekend ()
+  "STORYPOINT_WEEKEND=exclude skips Sat/Sun in day count."
+  (with-temp-buffer
+    (org-mode)
+    ;; 2026-06-01 (Mon) to 2026-06-12 (Fri) = 12 calendar days
+    ;; Weekdays only: 10 days (skip 6/6 Sat, 6/7 Sun)
+    ;; 10 SP total, 5 done, "today" = 2026-06-05 (Fri)
+    ;; Weekday elapsed: 5 days → ideal = 10*(5/10) = 5 → gap = 0
+    (insert "* Project\n"
+            "SCHEDULED: <2026-06-01> DEADLINE: <2026-06-12>\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 10\n"
+            ":STORYPOINT_WEEKEND: exclude\n"
+            ":END:\n"
+            "** DONE Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n"
+            "** TODO Task B\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (cl-letf (((symbol-function 'org-storypoint--today-absolute)
+               (lambda () (calendar-absolute-from-gregorian '(6 5 2026)))))
+      (let ((result (org-storypoint-progress)))
+        (should (string-match-p "on track" result))))))
+
+;;; RED 17: Result is copied to kill-ring
+(ert-deftest org-storypoint-test-progress-copies-to-kill-ring ()
+  "Progress result string is added to the kill ring."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 8\n"
+            ":END:\n"
+            "** DONE Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((result (org-storypoint-progress)))
+      (should (equal (current-kill 0) result)))))
+
+;;; RED 18: Progress signals error when no STORYPOINT on entry
+(ert-deftest org-storypoint-test-progress-no-storypoint ()
+  "Signals user-error when entry has no STORYPOINT."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project without SP\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (should-error (org-storypoint-progress) :type 'user-error)))
+
 ;;; org-storypoint-test.el ends here
