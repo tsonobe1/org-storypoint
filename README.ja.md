@@ -53,54 +53,120 @@ Emacs org-mode 向けの3点見積もり（PERT式）パッケージ。タスク
 
 `org-storypoint-mode` を有効にすると自動チェック（DONE 時の Effort 差異確認、ブレイクダウン警告）が動作します。コマンド自体はモード無効でも使えます。
 
-## ワークフロー
+## 使用例: スプリント計画
 
-### 1. タスクを見積もる
+Webアプリ開発の2週間スプリントを例に、全ワークフローを紹介します。
 
-タスクの見出しにカーソルを置き `org-storypoint-set` を実行。以下を順に入力します:
-
-1. **楽観値 (O)** — 最善ケースのストーリーポイント
-2. **最頻値 (M)** — 最も可能性が高いストーリーポイント
-3. **悲観値 (P)** — 最悪ケースのストーリーポイント
-4. **安全係数** — Normal (0σ)、Safe (1σ)、Very safe (2σ)
-
-PERT 式で算出し、以下のプロパティが設定されます:
+### 1. スプリントをタスクに分解する
 
 ```org
-* タスク
+* Sprint 2026-W23  :sprint:
+SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
+** ユーザー認証
+*** TODO ログインフォームUI
+*** TODO 入力バリデーション
+*** TODO エラーメッセージ表示
+*** TODO OAuth連携（Google）
+*** TODO OAuth連携（GitHub）
+*** TODO セッション永続化
+** 検索機能改善
+*** TODO postsテーブルに全文検索インデックス追加
+*** TODO 検索結果ランキングロジック
+*** TODO フィルタUI（カテゴリ、日付範囲）
+*** TODO 検索結果なし画面
+** パフォーマンス
+*** TODO APIレスポンスタイムのプロファイリング
+*** TODO ホットクエリのRedisキャッシュ追加
+*** TODO 一覧ページの画像遅延読み込み
+```
+
+### 2. リーフタスクを見積もる
+
+各リーフタスク（例: `ログインフォームUI`）にカーソルを置き `org-storypoint-set` を実行。
+楽観値 (O)、最頻値 (M)、悲観値 (P)、安全係数を入力します。
+
+見積もり後のタスク:
+
+```org
+*** TODO ログインフォームUI
 :PROPERTIES:
-:STORYPOINT_OPTIMISTIC: 2
-:STORYPOINT_MOST_LIKELY: 5
-:STORYPOINT_PESSIMISTIC: 13
-:STORYPOINT_EXPECTED: 5.8
-:STORYPOINT_SIGMA: 1.8
+:STORYPOINT_OPTIMISTIC: 1
+:STORYPOINT_MOST_LIKELY: 2
+:STORYPOINT_PESSIMISTIC: 5
+:STORYPOINT_EXPECTED: 2.3
+:STORYPOINT_SIGMA: 0.7
 :STORYPOINT_SAFETY: Normal (0σ)
-:STORYPOINT: 5.8
+:STORYPOINT: 2.3
 :END:
 ```
 
-### 2. Effort に変換する
+全リーフタスクを見積もった状態:
 
-親見出しにカーソルを置き `org-storypoint-assign-efforts` を実行。基準時間（例: `0:10` = 1SP あたり10分）を選択します。
+```org
+* Sprint 2026-W23  :sprint:
+SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
+** ユーザー認証
+*** TODO ログインフォームUI                  :STORYPOINT: 2:
+*** TODO 入力バリデーション                  :STORYPOINT: 1:
+*** TODO エラーメッセージ表示                :STORYPOINT: 1:
+*** TODO OAuth連携（Google）                 :STORYPOINT: 5:
+*** TODO OAuth連携（GitHub）                 :STORYPOINT: 3:
+*** TODO セッション永続化                    :STORYPOINT: 3:
+** 検索機能改善
+*** TODO 全文検索インデックス追加            :STORYPOINT: 5:
+*** TODO 検索結果ランキングロジック          :STORYPOINT: 8:
+*** TODO フィルタUI（カテゴリ、日付範囲）    :STORYPOINT: 5:
+*** TODO 検索結果なし画面                    :STORYPOINT: 1:
+** パフォーマンス
+*** TODO APIレスポンスタイムのプロファイリング :STORYPOINT: 2:
+*** TODO Redisキャッシュ追加                 :STORYPOINT: 5:
+*** TODO 画像遅延読み込み                    :STORYPOINT: 2:
+```
 
-- **リーフタスク** — `Effort = STORYPOINT × 基準時間` が設定される
-- **中間タスク** — 子タスクの Effort 合計が設定される
-- STORYPOINT 未設定のタスクは警告が出てスキップされる
-- 中間タスクの STORYPOINT と子の合計が不一致の場合、警告が出る（プロパティは上書きしない）
+### 3. Effort に変換する
 
-### 3. 進捗を確認する
+`Sprint 2026-W23` にカーソルを置き `org-storypoint-assign-efforts` を実行。
+基準時間を選択します（例: `0:15` = 1SP あたり15分）。
 
-親見出しに SCHEDULED と DEADLINE を設定し、`org-storypoint-progress` を実行:
+結果:
+
+- 各 **リーフタスク** に `Effort = STORYPOINT × 15分` が設定される（例: `ログインフォームUI` → `0:30`）
+- 各 **中間タスク**（例: `ユーザー認証`）に子の Effort 合計が設定される
+- **スプリント見出し** に全体の合計が設定される: `STORYPOINT: 43`, `Effort: 10:45`
+
+### 4. 毎日の進捗確認
+
+スプリント数日目に `org-storypoint-progress` をスプリント見出しで実行:
 
 ```
-behind -2.0SP | pace 1.0SP/day | done 3/10 SP (30.0%)
+behind -3.0SP | pace 4.3SP/day | done 10/43 SP (23.3%)
 ```
 
-`org-storypoint-set-weekend` で土日を日数計算から除外できます。
+これは以下を意味します:
+- 理想バーンダウンラインから **3 SP 遅れている**
+- 期日に間に合うには平均 **4.3 SP/日** のペースが必要
+- 現在 **43 SP 中 10 SP** を完了
 
-### 4. 完了時に振り返る
+チームが土日休みなら `org-storypoint-set-weekend` で土日を日数計算から除外できます。
 
-`org-storypoint-mode` を有効にした状態でタスクを完了（TODO → DONE）すると、実績 CLOCK と見積もり Effort の差が閾値を超えた場合に理由の入力を求め、`EFFORT_DIFF_REASON` プロパティに記録します。
+### 5. 完了時の見積もり精度振り返り
+
+`org-storypoint-mode` を有効にした状態でタスクを DONE にすると（例: `OAuth連携（Google）`）、見積もり Effort と実績 CLOCK の差をチェック:
+
+```
+Effort: 75min, Clocked: 120min, Diff: +45min. Why?
+```
+
+理由を入力すると（例: "APIドキュメントが古く、実装を逆引きする必要があった"）`EFFORT_DIFF_REASON` プロパティに記録されます。これにより見積もり精度の改善記録が蓄積されます。
+
+## ワークフローまとめ
+
+| ステップ | コマンド | 動作 |
+|---|---|---|
+| 見積もり | `org-storypoint-set` | O/M/P 入力 → PERT 計算 → STORYPOINT プロパティ設定 |
+| 変換 | `org-storypoint-assign-efforts` | STORYPOINT × 基準時間 → Effort に変換（ツリー集約あり） |
+| 進捗確認 | `org-storypoint-progress` | 完了 SP vs 理想バーンダウン → ステータスをミニバッファに表示 |
+| 振り返り | `org-storypoint-mode` | DONE 時: Effort vs CLOCK 差異チェック → 理由を記録 |
 
 ## カスタマイズ
 

@@ -53,54 +53,120 @@ Clone this repository and add the directory to your `load-path`:
 
 `org-storypoint-mode` enables automatic checks (effort diff on DONE, breakdown warnings). Interactive commands work with or without the mode.
 
-## Workflow
+## Example: Sprint planning
 
-### 1. Estimate tasks
+Here is a full walkthrough using a 2-week sprint for a web application.
 
-Place the cursor on a task heading and run `org-storypoint-set`. You will be prompted for:
-
-1. **Optimistic (O)** — best-case storypoints
-2. **Most Likely (M)** — most probable storypoints
-3. **Pessimistic (P)** — worst-case storypoints
-4. **Safety factor** — Normal (0σ), Safe (1σ), or Very safe (2σ)
-
-The command computes the PERT estimate and sets these properties:
+### 1. Break down the sprint into tasks
 
 ```org
-* Task
+* Sprint 2026-W23  :sprint:
+SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
+** User authentication
+*** TODO Login form UI
+*** TODO Input validation
+*** TODO Error message display
+*** TODO OAuth integration (Google)
+*** TODO OAuth integration (GitHub)
+*** TODO Session persistence
+** Search improvements
+*** TODO Add full-text index to posts table
+*** TODO Search result ranking logic
+*** TODO Filter UI (category, date range)
+*** TODO Empty state / no results page
+** Performance
+*** TODO Profile API response times
+*** TODO Add Redis caching for hot queries
+*** TODO Lazy-load images on listing pages
+```
+
+### 2. Estimate each leaf task
+
+Place the cursor on each leaf task (e.g., `Login form UI`) and run `org-storypoint-set`.
+You will be prompted for Optimistic (O), Most Likely (M), Pessimistic (P), and a safety factor.
+
+After estimating, the task looks like:
+
+```org
+*** TODO Login form UI
 :PROPERTIES:
-:STORYPOINT_OPTIMISTIC: 2
-:STORYPOINT_MOST_LIKELY: 5
-:STORYPOINT_PESSIMISTIC: 13
-:STORYPOINT_EXPECTED: 5.8
-:STORYPOINT_SIGMA: 1.8
+:STORYPOINT_OPTIMISTIC: 1
+:STORYPOINT_MOST_LIKELY: 2
+:STORYPOINT_PESSIMISTIC: 5
+:STORYPOINT_EXPECTED: 2.3
+:STORYPOINT_SIGMA: 0.7
 :STORYPOINT_SAFETY: Normal (0σ)
-:STORYPOINT: 5.8
+:STORYPOINT: 2.3
 :END:
 ```
 
-### 2. Convert to Effort
+After estimating all leaf tasks, the tree might look like:
 
-Place the cursor on the parent heading and run `org-storypoint-assign-efforts`. Select a base duration (e.g., `0:10` = 10 minutes per storypoint).
+```org
+* Sprint 2026-W23  :sprint:
+SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
+** User authentication
+*** TODO Login form UI                       :STORYPOINT: 2:
+*** TODO Input validation                    :STORYPOINT: 1:
+*** TODO Error message display               :STORYPOINT: 1:
+*** TODO OAuth integration (Google)          :STORYPOINT: 5:
+*** TODO OAuth integration (GitHub)          :STORYPOINT: 3:
+*** TODO Session persistence                 :STORYPOINT: 3:
+** Search improvements
+*** TODO Add full-text index to posts table  :STORYPOINT: 5:
+*** TODO Search result ranking logic         :STORYPOINT: 8:
+*** TODO Filter UI (category, date range)    :STORYPOINT: 5:
+*** TODO Empty state / no results page       :STORYPOINT: 1:
+** Performance
+*** TODO Profile API response times          :STORYPOINT: 2:
+*** TODO Add Redis caching for hot queries   :STORYPOINT: 5:
+*** TODO Lazy-load images on listing pages   :STORYPOINT: 2:
+```
 
-- **Leaf tasks** get `Effort = STORYPOINT × base duration`
-- **Intermediate tasks** get the sum of their children's Effort
-- Tasks without STORYPOINT are warned and skipped
-- If an intermediate task's own STORYPOINT disagrees with its children's sum, a warning is shown
+### 3. Convert to Effort
 
-### 3. Track progress
+Place the cursor on `Sprint 2026-W23` and run `org-storypoint-assign-efforts`.
+Select a base duration (e.g., `0:15` = 15 minutes per storypoint).
 
-Set SCHEDULED and DEADLINE on the parent heading, then run `org-storypoint-progress`:
+The result:
+
+- Each **leaf task** gets `Effort = STORYPOINT × 15 min` (e.g., `Login form UI` → `0:30`)
+- Each **intermediate task** (e.g., `User authentication`) gets the sum of its children's Effort
+- The **sprint heading** gets the total: `STORYPOINT: 43`, `Effort: 10:45`
+
+### 4. Track progress daily
+
+A few days into the sprint, run `org-storypoint-progress` on the sprint heading:
 
 ```
-behind -2.0SP | pace 1.0SP/day | done 3/10 SP (30.0%)
+behind -3.0SP | pace 4.3SP/day | done 10/43 SP (23.3%)
 ```
 
-Use `org-storypoint-set-weekend` to exclude weekends from the day count.
+This tells you:
+- You're **3 SP behind** the ideal burn-down line
+- You need to average **4.3 SP/day** to finish on time
+- You've completed **10 out of 43 SP** so far
 
-### 4. Review on completion
+Use `org-storypoint-set-weekend` to exclude weekends if the team doesn't work Sat/Sun.
 
-With `org-storypoint-mode` enabled, completing a task (TODO → DONE) checks if the clocked time differs significantly from the estimated Effort. If so, you are prompted to record a reason in the `EFFORT_DIFF_REASON` property.
+### 5. Review estimation accuracy on completion
+
+With `org-storypoint-mode` enabled, when you mark a task DONE (e.g., `OAuth integration (Google)`), the package compares the estimated Effort against the actual clocked time:
+
+```
+Effort: 75min, Clocked: 120min, Diff: +45min. Why?
+```
+
+Type your reason (e.g., "API docs were outdated, had to reverse-engineer the flow") and it is saved to the `EFFORT_DIFF_REASON` property. This builds a record of estimation accuracy over time.
+
+## Workflow summary
+
+| Step | Command | What happens |
+|---|---|---|
+| Estimate | `org-storypoint-set` | Input O/M/P → PERT calculation → set STORYPOINT properties |
+| Convert | `org-storypoint-assign-efforts` | STORYPOINT × base time → Effort on each task, with tree aggregation |
+| Track | `org-storypoint-progress` | Compare done SP vs ideal burn-down → show status in minibuffer |
+| Review | `org-storypoint-mode` | On DONE: check Effort vs CLOCK diff → record reason if significant |
 
 ## Customization
 
