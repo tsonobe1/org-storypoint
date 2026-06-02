@@ -172,6 +172,185 @@ The result:
 - Each **intermediate task** (e.g., `Login form`, `User authentication`) gets the sum of its children's Effort
 - The **sprint heading** gets the total: `STORYPOINT: 56`, `Effort: 14:00`
 
+<details>
+<summary>Full tree after Effort assignment (click to expand)</summary>
+
+```org
+* Sprint 2026-W23  :sprint:
+SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
+:PROPERTIES:
+:STORYPOINT: 56
+:Effort:    14:00
+:END:
+** User authentication
+:PROPERTIES:
+:Effort:    5:30
+:END:
+*** Login form
+:PROPERTIES:
+:Effort:    1:15
+:END:
+**** TODO Form layout and styling
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Email/password validation
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO Error message display
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO "Remember me" checkbox
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+*** OAuth integration
+:PROPERTIES:
+:Effort:    2:30
+:END:
+**** TODO Google OAuth: register app
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO Google OAuth: callback handler
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+**** TODO GitHub OAuth: register app
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO GitHub OAuth: callback handler
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Unify OAuth user creation flow
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+*** Session management
+:PROPERTIES:
+:Effort:    1:45
+:END:
+**** TODO JWT token generation
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Refresh token rotation
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+**** TODO Logout and token revocation
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+** Search improvements
+:PROPERTIES:
+:Effort:    5:15
+:END:
+*** Backend
+:PROPERTIES:
+:Effort:    2:15
+:END:
+**** TODO Add GIN index to posts.body
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Implement ts_rank scoring
+:PROPERTIES:
+:STORYPOINT: 5
+:Effort:    1:15
+:END:
+**** TODO Pagination for search results API
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+*** Frontend
+:PROPERTIES:
+:Effort:    3:00
+:END:
+**** TODO Search bar with debounced input
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Category filter dropdown
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+**** TODO Date range picker
+:PROPERTIES:
+:STORYPOINT: 5
+:Effort:    1:15
+:END:
+**** TODO Empty state / no results page
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO Loading skeleton
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+** Performance
+:PROPERTIES:
+:Effort:    3:15
+:END:
+*** Profiling
+:PROPERTIES:
+:Effort:    1:15
+:END:
+**** TODO Set up request timing middleware
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Identify top 5 slow endpoints
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+*** Optimization
+:PROPERTIES:
+:Effort:    2:00
+:END:
+**** TODO Add Redis caching for hot queries
+:PROPERTIES:
+:STORYPOINT: 5
+:Effort:    1:15
+:END:
+**** TODO Lazy-load images on listing pages
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO Enable gzip compression
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+```
+
+</details>
+
 ### 4. Track progress daily
 
 A few days into the sprint, run `org-storypoint-progress` on the sprint heading:

@@ -172,6 +172,185 @@ SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
 - 各 **中間タスク**（例: `ログインフォーム`、`ユーザー認証`）に子の Effort 合計が設定される
 - **スプリント見出し** に全体の合計が設定される: `STORYPOINT: 56`, `Effort: 14:00`
 
+<details>
+<summary>Effort 変換後の全ツリー（クリックで展開）</summary>
+
+```org
+* Sprint 2026-W23  :sprint:
+SCHEDULED: <2026-06-01 Mon> DEADLINE: <2026-06-12 Fri>
+:PROPERTIES:
+:STORYPOINT: 56
+:Effort:    14:00
+:END:
+** ユーザー認証
+:PROPERTIES:
+:Effort:    5:30
+:END:
+*** ログインフォーム
+:PROPERTIES:
+:Effort:    1:15
+:END:
+**** TODO フォームレイアウトとスタイリング
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO メール/パスワードバリデーション
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO エラーメッセージ表示
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO 「ログイン状態を保持」チェックボックス
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+*** OAuth連携
+:PROPERTIES:
+:Effort:    2:30
+:END:
+**** TODO Google OAuth: アプリ登録と認証情報取得
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO Google OAuth: コールバックハンドラ
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+**** TODO GitHub OAuth: アプリ登録と認証情報取得
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO GitHub OAuth: コールバックハンドラ
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO OAuthユーザー作成フローの統一
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+*** セッション管理
+:PROPERTIES:
+:Effort:    1:45
+:END:
+**** TODO JWTトークン生成
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO リフレッシュトークンローテーション
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+**** TODO ログアウトとトークン失効
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+** 検索機能改善
+:PROPERTIES:
+:Effort:    5:15
+:END:
+*** バックエンド
+:PROPERTIES:
+:Effort:    2:15
+:END:
+**** TODO posts.bodyカラムにGINインデックス追加
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO ts_rankスコアリング実装
+:PROPERTIES:
+:STORYPOINT: 5
+:Effort:    1:15
+:END:
+**** TODO 検索結果APIのページネーション
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+*** フロントエンド
+:PROPERTIES:
+:Effort:    3:00
+:END:
+**** TODO デバウンス付き検索バー
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO カテゴリフィルタドロップダウン
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+**** TODO 日付範囲ピッカー
+:PROPERTIES:
+:STORYPOINT: 5
+:Effort:    1:15
+:END:
+**** TODO 検索結果なし画面
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+**** TODO ローディングスケルトン
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+** パフォーマンス
+:PROPERTIES:
+:Effort:    3:15
+:END:
+*** プロファイリング
+:PROPERTIES:
+:Effort:    1:15
+:END:
+**** TODO リクエストタイミングミドルウェア設置
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO 遅いエンドポイントTop5の特定
+:PROPERTIES:
+:STORYPOINT: 3
+:Effort:    0:45
+:END:
+*** 最適化
+:PROPERTIES:
+:Effort:    2:00
+:END:
+**** TODO ホットクエリのRedisキャッシュ追加
+:PROPERTIES:
+:STORYPOINT: 5
+:Effort:    1:15
+:END:
+**** TODO 一覧ページの画像遅延読み込み
+:PROPERTIES:
+:STORYPOINT: 2
+:Effort:    0:30
+:END:
+**** TODO APIレスポンスのgzip圧縮有効化
+:PROPERTIES:
+:STORYPOINT: 1
+:Effort:    0:15
+:END:
+```
+
+</details>
+
 ### 4. 毎日の進捗確認
 
 スプリント数日目に `org-storypoint-progress` をスプリント見出しで実行:
