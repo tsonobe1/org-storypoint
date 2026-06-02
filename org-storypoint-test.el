@@ -72,4 +72,92 @@
     (setq sort-fn (cdr (assq 'display-sort-function (cdr metadata))))
     (should (eq sort-fn #'identity))))
 
+;;; --- Issue #2: Effort assignment ---
+
+;;; RED 7: Convert storypoint × base minutes to Effort string
+(ert-deftest org-storypoint-test-effort-from-point ()
+  "SP multiplied by base minutes produces H:MM effort string."
+  (should (equal (org-storypoint--effort-from-point 3 5) "0:15"))
+  (should (equal (org-storypoint--effort-from-point 8 10) "1:20"))
+  (should (equal (org-storypoint--effort-from-point 1 1) "0:01")))
+
+;;; RED 8: assign-efforts sets Effort on children and totals on parent
+(ert-deftest org-storypoint-test-assign-efforts-flat ()
+  "Assign Effort to children based on STORYPOINT, set totals on parent."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            "** Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** Task B\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    ;; Select "0:05" as base time (5 minutes per SP)
+    (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
+               (lambda (_prompt _collection) "0:05")))
+      (org-storypoint-assign-efforts))
+    ;; Task A: 3 SP × 5 min = 0:15
+    (goto-char (point-min))
+    (search-forward "Task A")
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "0:15"))
+    ;; Task B: 5 SP × 5 min = 0:25
+    (goto-char (point-min))
+    (search-forward "Task B")
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "0:25"))
+    ;; Parent: total Effort = 0:40, total SP = 8
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "Effort") "0:40"))
+    (should (equal (org-entry-get nil "STORYPOINT") "8"))))
+
+;;; RED 9: Children without STORYPOINT are skipped
+(ert-deftest org-storypoint-test-assign-efforts-skips-unestimated ()
+  "Children without STORYPOINT get no Effort; only estimated tasks count in totals."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            "** Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** Task B\n"
+            "** Task C\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
+               (lambda (_prompt _collection) "0:10")))
+      (org-storypoint-assign-efforts))
+    ;; Task B has no STORYPOINT → no Effort
+    (goto-char (point-min))
+    (search-forward "Task B")
+    (org-back-to-heading t)
+    (should (null (org-entry-get nil "Effort")))
+    ;; Parent totals only from estimated tasks: SP=8, Effort=1:20
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (should (equal (org-entry-get nil "STORYPOINT") "8"))
+    (should (equal (org-entry-get nil "Effort") "1:20"))))
+
+;;; RED 10: assign-efforts with no children signals error
+(ert-deftest org-storypoint-test-assign-efforts-no-children ()
+  "Signals user-error when no child tasks have STORYPOINT."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Empty project\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
+               (lambda (_prompt _collection) "0:05")))
+      (should-error (org-storypoint-assign-efforts) :type 'user-error))))
+
 ;;; org-storypoint-test.el ends here
