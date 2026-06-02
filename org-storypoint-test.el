@@ -3,41 +3,38 @@
 (require 'ert)
 (require 'org-storypoint)
 
-;;; RED 1: PERT calculation
-(ert-deftest org-storypoint-test-pert-estimate ()
-  "PERT formula: (O + 4M + P) / 6 with safety factor applied."
+;;; --- 3点見積もり ---
+
+(ert-deftest org-storypoint-test/safety-0のとき-pert期待値が返る ()
+  "安全係数0でPERT加重平均が正しく計算される。"
   (let ((result (org-storypoint--estimate 1 3 8 0)))
-    ;; Expected = (1 + 12 + 8) / 6 = 3.5
-    ;; Sigma = (8 - 1) / 6 ≈ 1.1667
-    ;; Safety 0 → 3.5 + 0 * 1.1667 = 3.5
     (should (= result 3.5))))
 
-;;; RED 2: Safety factor applies sigma multiplier
-(ert-deftest org-storypoint-test-pert-with-safety-factor ()
-  "Safety factor multiplies sigma and adds to expected value."
-  ;; O=1, M=3, P=8 → Expected=3.5, Sigma≈1.1667
-  ;; Safety 1 → 3.5 + 1 * 1.1667 ≈ 4.6667
-  ;; Safety 2 → 3.5 + 2 * 1.1667 ≈ 5.8333
-  (should (< (abs (- (org-storypoint--estimate 1 3 8 1) 4.6667)) 0.001))
+(ert-deftest org-storypoint-test/safety-1のとき-sigmaが加算される ()
+  "安全係数1でExpected+1σが返る。"
+  (should (< (abs (- (org-storypoint--estimate 1 3 8 1) 4.6667)) 0.001)))
+
+(ert-deftest org-storypoint-test/safety-2のとき-sigma2倍が加算される ()
+  "安全係数2でExpected+2σが返る。"
   (should (< (abs (- (org-storypoint--estimate 1 3 8 2) 5.8333)) 0.001)))
 
-;;; RED 3: Format storypoint values
-(ert-deftest org-storypoint-test-format ()
-  "Integer points have no decimal, fractional points show one decimal."
+(ert-deftest org-storypoint-test/整数ポイントのとき-小数点なしで表示される ()
+  "整数値は .0 なしでフォーマットされる。"
   (should (equal (org-storypoint--format 5) "5"))
-  (should (equal (org-storypoint--format 5.0) "5"))
+  (should (equal (org-storypoint--format 5.0) "5")))
+
+(ert-deftest org-storypoint-test/小数ポイントのとき-小数点1桁で表示される ()
+  "小数値は1桁でフォーマットされる。"
   (should (equal (org-storypoint--format 3.5) "3.5"))
   (should (equal (org-storypoint--format 4.6667) "4.7")))
 
-;;; RED 4: org-storypoint-set writes 7 properties to org entry
-(ert-deftest org-storypoint-test-set-writes-properties ()
-  "org-storypoint-set sets all 7 STORYPOINT properties on the current entry."
+(ert-deftest org-storypoint-test/見積もり実行のとき-7つのプロパティが設定される ()
+  "org-storypoint-setで7つのSTORYPOINTプロパティがエントリに設定される。"
   (with-temp-buffer
     (org-mode)
     (insert "* Test task\n")
     (goto-char (point-min))
     (org-back-to-heading t)
-    ;; Simulate: O=2, M=5, P=13, Safety="Normal (0σ)"
     (cl-letf (((symbol-function 'org-storypoint--read)
                (let ((calls '(2 5 13)))
                  (lambda (_prompt &optional _min)
@@ -49,17 +46,13 @@
     (should (equal (org-entry-get nil "STORYPOINT_OPTIMISTIC") "2"))
     (should (equal (org-entry-get nil "STORYPOINT_MOST_LIKELY") "5"))
     (should (equal (org-entry-get nil "STORYPOINT_PESSIMISTIC") "13"))
-    ;; Expected = (2 + 20 + 13) / 6 = 5.833...
     (should (equal (org-entry-get nil "STORYPOINT_EXPECTED") "5.8"))
-    ;; Sigma = (13 - 2) / 6 = 1.833...
     (should (equal (org-entry-get nil "STORYPOINT_SIGMA") "1.8"))
     (should (equal (org-entry-get nil "STORYPOINT_SAFETY") "Normal (0σ)"))
-    ;; Safety 0 → STORYPOINT = Expected = 5.8
     (should (equal (org-entry-get nil "STORYPOINT") "5.8"))))
 
-;;; RED 6: completing-read-in-order preserves candidate order via metadata
-(ert-deftest org-storypoint-test-completing-read-metadata ()
-  "The collection function returns metadata with display-sort-function = identity."
+(ert-deftest org-storypoint-test/completing-readのとき-metadataで順序が保持される ()
+  "補完候補にdisplay-sort-function=identityのmetadataが付与される。"
   (let* ((candidates '("1" "2" "3" "5" "8"))
          collection-fn metadata sort-fn)
     (cl-letf (((symbol-function 'completing-read)
@@ -72,18 +65,16 @@
     (setq sort-fn (cdr (assq 'display-sort-function (cdr metadata))))
     (should (eq sort-fn #'identity))))
 
-;;; --- Issue #2: Effort assignment ---
+;;; --- Effort一括変換 ---
 
-;;; RED 7: Convert storypoint × base minutes to Effort string
-(ert-deftest org-storypoint-test-effort-from-point ()
-  "SP multiplied by base minutes produces H:MM effort string."
+(ert-deftest org-storypoint-test/SP掛ける基準時間のとき-effort文字列が返る ()
+  "ストーリーポイント×基準分数でH:MM形式のEffortが返る。"
   (should (equal (org-storypoint--effort-from-point 3 5) "0:15"))
   (should (equal (org-storypoint--effort-from-point 8 10) "1:20"))
   (should (equal (org-storypoint--effort-from-point 1 1) "0:01")))
 
-;;; RED 8: assign-efforts sets Effort on children and totals on parent
-(ert-deftest org-storypoint-test-assign-efforts-flat ()
-  "Assign Effort to children based on STORYPOINT, set totals on parent."
+(ert-deftest org-storypoint-test/フラットな子タスクのとき-各子と親にeffortが設定される ()
+  "直下の子タスクにEffortが設定され、親に合計が設定される。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -97,29 +88,24 @@
             ":END:\n")
     (goto-char (point-min))
     (org-back-to-heading t)
-    ;; Select "0:05" as base time (5 minutes per SP)
     (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
                (lambda (_prompt _collection) "0:05")))
       (org-storypoint-assign-efforts))
-    ;; Task A: 3 SP × 5 min = 0:15
     (goto-char (point-min))
     (search-forward "Task A")
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "0:15"))
-    ;; Task B: 5 SP × 5 min = 0:25
     (goto-char (point-min))
     (search-forward "Task B")
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "0:25"))
-    ;; Parent: total Effort = 0:40, total SP = 8
     (goto-char (point-min))
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "0:40"))
     (should (equal (org-entry-get nil "STORYPOINT") "8"))))
 
-;;; RED 9: Children without STORYPOINT are skipped
-(ert-deftest org-storypoint-test-assign-efforts-skips-unestimated ()
-  "Children without STORYPOINT get no Effort; only estimated tasks count in totals."
+(ert-deftest org-storypoint-test/SP未設定の子のとき-effortなしでスキップされる ()
+  "STORYPOINT未設定の子タスクにはEffortが付かず、合計にも含まれない。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -137,20 +123,17 @@
     (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
                (lambda (_prompt _collection) "0:10")))
       (org-storypoint-assign-efforts))
-    ;; Task B has no STORYPOINT → no Effort
     (goto-char (point-min))
     (search-forward "Task B")
     (org-back-to-heading t)
     (should (null (org-entry-get nil "Effort")))
-    ;; Parent totals only from estimated tasks: SP=8, Effort=1:20
     (goto-char (point-min))
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "STORYPOINT") "8"))
     (should (equal (org-entry-get nil "Effort") "1:20"))))
 
-;;; RED 10: assign-efforts with no children signals error
-(ert-deftest org-storypoint-test-assign-efforts-no-children ()
-  "Signals user-error when no child tasks have STORYPOINT."
+(ert-deftest org-storypoint-test/子見出しなしのとき-user-errorになる ()
+  "子見出しがない場合にuser-errorが発生する。"
   (with-temp-buffer
     (org-mode)
     (insert "* Empty project\n")
@@ -160,11 +143,10 @@
                (lambda (_prompt _collection) "0:05")))
       (should-error (org-storypoint-assign-efforts) :type 'user-error))))
 
-;;; --- Issue #3: Tree aggregation ---
+;;; --- ツリー集約 ---
 
-;;; RED 11: Nested tree calculates Effort recursively from leaf SP
-(ert-deftest org-storypoint-test-assign-efforts-nested ()
-  "Leaf SP drives Effort; intermediate tasks get children's sum."
+(ert-deftest org-storypoint-test/ネストしたツリーのとき-リーフから再帰的にeffortが計算される ()
+  "リーフのSPからEffortが計算され、中間タスクに子の合計が設定される。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -186,35 +168,29 @@
     (cl-letf (((symbol-function 'org-storypoint--completing-read-in-order)
                (lambda (_prompt _collection) "0:10")))
       (org-storypoint-assign-efforts))
-    ;; Task 1 (leaf): 3 SP × 10 min = 0:30
     (goto-char (point-min))
     (search-forward "Task 1")
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "0:30"))
-    ;; Sub 2-1 (leaf): 2 SP × 10 min = 0:20
     (goto-char (point-min))
     (search-forward "Sub 2-1")
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "0:20"))
-    ;; Sub 2-2 (leaf): 5 SP × 10 min = 0:50
     (goto-char (point-min))
     (search-forward "Sub 2-2")
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "0:50"))
-    ;; Task 2 (intermediate): children sum = 7 SP × 10 min = 1:10
     (goto-char (point-min))
     (search-forward "Task 2")
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "Effort") "1:10"))
-    ;; Project (root): total = 10 SP, Effort = 1:40
     (goto-char (point-min))
     (org-back-to-heading t)
     (should (equal (org-entry-get nil "STORYPOINT") "10"))
     (should (equal (org-entry-get nil "Effort") "1:40"))))
 
-;;; RED 12: Unestimated leaf tasks produce warning message
-(ert-deftest org-storypoint-test-assign-efforts-warns-unestimated ()
-  "Leaf tasks without STORYPOINT trigger a warning naming the task."
+(ert-deftest org-storypoint-test/SP未設定リーフのとき-タスク名付き警告が出る ()
+  "STORYPOINT未設定のリーフタスクはタスク名付きで警告される。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -239,9 +215,8 @@
       (should (cl-some (lambda (msg) (string-match-p "Task B" msg))
                        warning-messages)))))
 
-;;; RED 13: Intermediate task SP mismatch produces warning, property not overwritten
-(ert-deftest org-storypoint-test-assign-efforts-sp-mismatch-warning ()
-  "Intermediate task with own SP different from children sum warns but keeps property."
+(ert-deftest org-storypoint-test/中間タスクのSPが子の合計と不一致のとき-警告が出てプロパティは保持される ()
+  "中間タスクのSTORYPOINTと子の合計が異なる場合、警告が出るがプロパティは上書きされない。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -266,23 +241,20 @@
                  (lambda (fmt &rest args)
                    (push (apply #'format fmt args) warning-messages))))
         (org-storypoint-assign-efforts))
-      ;; Warning mentions Task 2 and the mismatch
       (should (cl-some (lambda (msg)
                          (and (string-match-p "Task 2" msg)
                               (string-match-p "8" msg)
                               (string-match-p "10" msg)))
                        warning-messages))
-      ;; STORYPOINT property on Task 2 is NOT overwritten (still 8)
       (goto-char (point-min))
       (search-forward "Task 2")
       (org-back-to-heading t)
       (should (equal (org-entry-get nil "STORYPOINT") "8")))))
 
-;;; --- Issue #4: Progress ---
+;;; --- 進捗計算 ---
 
-;;; RED 14: Progress shows SP completion percentage
-(ert-deftest org-storypoint-test-progress-basic ()
-  "Progress shows done/total SP percentage without schedule info."
+(ert-deftest org-storypoint-test/スケジュールなしのとき-完了率のみ表示される ()
+  "SCHEDULED/DEADLINEなしでSP完了率が表示される。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -303,14 +275,10 @@
       (should (string-match-p "done 3/10 SP" result))
       (should (string-match-p "30\\.0%" result)))))
 
-;;; RED 15: Progress with SCHEDULED/DEADLINE shows ideal line comparison
-(ert-deftest org-storypoint-test-progress-with-schedule ()
-  "With SCHEDULED and DEADLINE, shows status gap and pace."
+(ert-deftest org-storypoint-test/スケジュールありで遅れのとき-behind表示とペースが出る ()
+  "SCHEDULED/DEADLINEがあり理想線より遅れている場合、behindとpaceが表示される。"
   (with-temp-buffer
     (org-mode)
-    ;; 10-day project, 10 SP total, 3 SP done
-    ;; SCHEDULED: day 1, DEADLINE: day 10
-    ;; "Today" = day 5 → ideal = 5 SP → gap = 3 - 5 = -2
     (insert "* Project\n"
             "SCHEDULED: <2026-06-01> DEADLINE: <2026-06-10>\n"
             ":PROPERTIES:\n"
@@ -326,7 +294,6 @@
             ":END:\n")
     (goto-char (point-min))
     (org-back-to-heading t)
-    ;; Mock "today" as 2026-06-05
     (cl-letf (((symbol-function 'org-storypoint--today-absolute)
                (lambda () (calendar-absolute-from-gregorian '(6 5 2026)))))
       (let ((result (org-storypoint-progress)))
@@ -334,15 +301,10 @@
         (should (string-match-p "-2\\.0SP" result))
         (should (string-match-p "pace" result))))))
 
-;;; RED 16: Weekend exclusion changes day count and pace
-(ert-deftest org-storypoint-test-progress-exclude-weekend ()
-  "STORYPOINT_WEEKEND=exclude skips Sat/Sun in day count."
+(ert-deftest org-storypoint-test/土日除外のとき-平日のみで日数計算される ()
+  "STORYPOINT_WEEKEND=excludeで土日がスキップされ正しいペースが計算される。"
   (with-temp-buffer
     (org-mode)
-    ;; 2026-06-01 (Mon) to 2026-06-12 (Fri) = 12 calendar days
-    ;; Weekdays only: 10 days (skip 6/6 Sat, 6/7 Sun)
-    ;; 10 SP total, 5 done, "today" = 2026-06-05 (Fri)
-    ;; Weekday elapsed: 5 days → ideal = 10*(5/10) = 5 → gap = 0
     (insert "* Project\n"
             "SCHEDULED: <2026-06-01> DEADLINE: <2026-06-12>\n"
             ":PROPERTIES:\n"
@@ -364,9 +326,8 @@
       (let ((result (org-storypoint-progress)))
         (should (string-match-p "on track" result))))))
 
-;;; RED 17: Result is copied to kill-ring
-(ert-deftest org-storypoint-test-progress-copies-to-kill-ring ()
-  "Progress result string is added to the kill ring."
+(ert-deftest org-storypoint-test/進捗表示のとき-結果がkill-ringにコピーされる ()
+  "進捗結果文字列がkill-ringに追加される。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project\n"
@@ -382,9 +343,8 @@
     (let ((result (org-storypoint-progress)))
       (should (equal (current-kill 0) result)))))
 
-;;; RED 18: Progress signals error when no STORYPOINT on entry
-(ert-deftest org-storypoint-test-progress-no-storypoint ()
-  "Signals user-error when entry has no STORYPOINT."
+(ert-deftest org-storypoint-test/SP未設定エントリのとき-進捗計算でuser-errorになる ()
+  "STORYPOINTが設定されていないエントリでuser-errorが発生する。"
   (with-temp-buffer
     (org-mode)
     (insert "* Project without SP\n")
@@ -392,11 +352,52 @@
     (org-back-to-heading t)
     (should-error (org-storypoint-progress) :type 'user-error)))
 
-;;; --- Issue #5: Effort diff check + minor-mode ---
+(ert-deftest org-storypoint-test/全タスクDONEのとき-100パーセント表示される ()
+  "全子タスクがDONEのとき完了率100%が表示される。"
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 5\n"
+            ":END:\n"
+            "** DONE Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 3\n"
+            ":END:\n"
+            "** DONE Task B\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 2\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (let ((result (org-storypoint-progress)))
+      (should (string-match-p "done 5/5 SP" result))
+      (should (string-match-p "100\\.0%" result)))))
 
-;;; RED 19: Mode OFF — DONE transition does not prompt for diff reason
-(ert-deftest org-storypoint-test-mode-off-no-diff-check ()
-  "Without org-storypoint-mode, DONE transition does not trigger diff check."
+(ert-deftest org-storypoint-test/プロジェクト開始前のとき-elapsed-0で計算される ()
+  "SCHEDULEDが未来日のとき、経過日数0で理想SPも0になる。"
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Project\n"
+            "SCHEDULED: <2026-07-01> DEADLINE: <2026-07-10>\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 10\n"
+            ":END:\n"
+            "** TODO Task A\n"
+            ":PROPERTIES:\n"
+            ":STORYPOINT: 10\n"
+            ":END:\n")
+    (goto-char (point-min))
+    (org-back-to-heading t)
+    (cl-letf (((symbol-function 'org-storypoint--today-absolute)
+               (lambda () (calendar-absolute-from-gregorian '(6 15 2026)))))
+      (let ((result (org-storypoint-progress)))
+        (should (string-match-p "on track" result))))))
+
+;;; --- Effort差異チェック + minor-mode ---
+
+(ert-deftest org-storypoint-test/モードOFFのとき-DONE遷移で差異チェックが発火しない ()
+  "org-storypoint-mode無効時はDONE遷移で理由入力を求められない。"
   (with-temp-buffer
     (org-mode)
     (org-storypoint-mode -1)
@@ -415,13 +416,11 @@
         (org-todo "DONE"))
       (should-not read-string-called))))
 
-;;; RED 20: Mode ON — DONE transition records diff reason
-(ert-deftest org-storypoint-test-mode-on-diff-check ()
-  "With org-storypoint-mode, DONE transition with large diff prompts and records reason."
+(ert-deftest org-storypoint-test/モードONで差異閾値超のとき-理由が記録される ()
+  "org-storypoint-mode有効時にEffortとCLOCKの差が閾値超で理由がプロパティに記録される。"
   (with-temp-buffer
     (org-mode)
     (org-storypoint-mode 1)
-    ;; Effort 10min, CLOCK 30min → diff 20min > threshold 10
     (insert "* TODO Task\n"
             ":PROPERTIES:\n"
             ":Effort: 0:10\n"
@@ -438,9 +437,8 @@
                    "took longer than expected"))
     (org-storypoint-mode -1)))
 
-;;; RED 21: Mode ON — Effort above threshold warns about breakdown
-(ert-deftest org-storypoint-test-mode-on-breakdown-warning ()
-  "With org-storypoint-mode, setting Effort >= threshold shows breakdown message."
+(ert-deftest org-storypoint-test/モードONでeffort閾値超のとき-分割推奨メッセージが出る ()
+  "org-storypoint-mode有効時にEffort設定が閾値以上でブレイクダウン警告が表示される。"
   (with-temp-buffer
     (org-mode)
     (org-storypoint-mode 1)
@@ -456,9 +454,8 @@
                        warning-messages)))
     (org-storypoint-mode -1)))
 
-;;; RED 22: Mode OFF after ON — diff check no longer fires
-(ert-deftest org-storypoint-test-mode-toggle-off ()
-  "After disabling org-storypoint-mode, DONE transition does not trigger diff check."
+(ert-deftest org-storypoint-test/モードON後OFFのとき-差異チェックが発火しなくなる ()
+  "org-storypoint-modeをON→OFFにした後、DONE遷移で差異チェックが発火しない。"
   (with-temp-buffer
     (org-mode)
     (org-storypoint-mode 1)
